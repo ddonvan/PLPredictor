@@ -1,6 +1,9 @@
 import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, precision_score
 
-matches = pd.read_csv("matches.csv", index_col=0)
+
+matches = pd.read_csv("matches_2024-2022.csv", index_col=0)
 matches["date"] = pd.to_datetime(matches["date"])
 
 matches["venue_code"] = matches["venue"].astype("category").cat.codes
@@ -10,8 +13,6 @@ matches["day_code"] = matches["date"].dt.dayofweek
 
 matches["target"] = (matches["result"] == "W").astype("int")
 
-from sklearn.ensemble import RandomForestClassifier
-
 rf = RandomForestClassifier(n_estimators=50, min_samples_split=10, random_state=1)
 train = matches[matches["date"] < '2024-01-01']
 test = matches[matches["date"] > '2024-01-01']
@@ -19,13 +20,11 @@ predictors = ["venue_code", "opp_code", "hour", "day_code"]
 rf.fit(train[predictors], train["target"])
 
 preds = rf.predict(test[predictors])
-from sklearn.metrics import accuracy_score, precision_score
 
 acc = accuracy_score(test["target"], preds)
 combined = pd.DataFrame(dict(actual=test["target"], prediction=preds))
 
 grouped_matches = matches.groupby("team")
-
 group = grouped_matches.get_group("Manchester City")
 
 def rolling_averages(group, cols, new_cols):
@@ -44,7 +43,7 @@ matches_rolling.index = range(matches_rolling.shape[0])
 
 def make_predicitons(data, predictors):
     train = data[data["date"] < '2024-01-01']
-    test = data[data["date"] > '2024-01-01']
+    test = data[data["date"] > '2022-01-01']
     rf.fit(train[predictors], train["target"])
     preds = rf.predict(test[predictors])
     combined = pd.DataFrame(dict(actual=test["target"], prediction=preds))
@@ -70,8 +69,10 @@ mapping = MissingDict(**map_values)
 combined["new_team"] = combined["team"].map(mapping)
 
 merged = combined.merge(combined, left_on=["date", "new_team"], right_on=["date", "opponent"])
-
 print(merged)
+
+print(merged[(merged["prediction_x"] == 1) & (merged["prediction_y"] == 0)]["actual_x"].value_counts())
+
  
 
  
